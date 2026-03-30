@@ -1,10 +1,10 @@
 import os
 import pandas as pd
-import google.generativeai as genai  # Google Gemini API
+from google import genai  # Google Gemini API
 from flask import Flask, request, jsonify
 from datetime import datetime
 import json
-
+import paho.mqtt.publish as publish
 
 app = Flask(__name__)
 
@@ -39,8 +39,8 @@ def read_plant_type():
         return None
 
 # Configure Google Gemini API
-genai.configure(api_key=os.environ["API_KEY"])
-model = genai.GenerativeModel("gemini-1.5-flash")
+client = genai.Client(api_key=os.environ["API_KEY"])
+#model = genai.GenerativeModel("gemini-3-flash")
 
 # Custom prompt template with conversation memory
 def generate_prompt(data, question, conversation_history):
@@ -114,7 +114,11 @@ def ask_question():
     prompt = generate_prompt(latest_data, question, conversation_history)
 
     # Run the Gemini model to generate a response
-    response = model.generate_content(prompt)
+    #response = model.generate_content(prompt)
+    response = client.models.generate_content(
+      model="gemini-3-flash-preview",
+      contents=prompt
+    )
     print("Response from Gemini:")
     print(response.text)
 
@@ -130,6 +134,13 @@ def ask_question():
         conversation_history.pop(0)  # Remove the oldest exchange to maintain size
 
     return jsonify({'response': response_text})  # Stripping whitespace from the response
+
+COMMANDS = {
+    "LIGHT_ON": 21, "LIGHT_OFF": 20,
+    "PUMP_ON": 31, "PUMP_OFF": 30,
+    "HUMIDIFIER_ON": 41, "HUMIDIFIER_OFF": 40,
+    "VENT_ON": 51, "VENT_OFF": 50
+}
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=5000)
